@@ -95,7 +95,6 @@ public class MainActivity extends Activity {
     private static final String MSG_NO_SPEECH = "لم أفهم الكلام. تكلّم بوضوح وحاول مرة أخرى.";
     private static final String MSG_MIC = "مشكلة في الميكروفون. تأكّد أن تطبيق Google لديه إذن الميكروفون.";
     private static final String MSG_MIC_PERMISSION = "التطبيق يحتاج إذن الميكروفون ليسمعك. اسمح به من: الإعدادات > التطبيقات > Talk Translate > الأذونات.";
-    private static final String MSG_BUSY = "خدمة التعرّف على الصوت مشغولة. انتظر لحظة وحاول مرة أخرى.";
     private static final String MSG_RECOGNIZER = "خطأ في خدمة التعرّف على الصوت. حاول مرة أخرى.";
     private static final String MSG_GOOGLE_MISSING = "تطبيق Google غير مثبت أو معطّل على هاتفك.\n\n"
             + "التعرّف على الصوت يحتاج تطبيق Google. ثبّته أو فعّله من متجر Play ثم أعد المحاولة.";
@@ -118,6 +117,10 @@ public class MainActivity extends Activity {
     private boolean listeningArabic;
     private boolean gotResult;
     private ObjectAnimator pulse;
+    private boolean retried;
+    private boolean backgroundFailed; // background mode failed twice in this session
+    private int listenMode; // 0 = in the background, 1 = Google window
+    private final TextView[] modeChips = new TextView[2];
 
     private TextToSpeech tts;
     private boolean ttsReady;
@@ -159,6 +162,7 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences("settings", MODE_PRIVATE);
         targetIdx = clamp(prefs.getInt("target", 0));
         dialectIdx = clamp(prefs.getInt("dialect", 0));
+        listenMode = prefs.getInt("listenMode", 0) == 1 ? 1 : 0;
 
         setContentView(buildUi());
         refreshSelectors();
@@ -261,6 +265,14 @@ public class MainActivity extends Activity {
             refreshSelectors();
         }));
 
+        // Listening mode selector
+        root.addView(label("طريقة الاستماع"));
+        root.addView(chipRow(modeChips, new String[]{"في الخلفية", "نافذة Google"}, i -> {
+            listenMode = i;
+            prefs.edit().putInt("listenMode", i).apply();
+            refreshSelectors();
+        }));
+
         // Error banner (tap to hide)
         errorBanner = text("", 15, C_ERROR_TEXT, false);
         errorBanner.setTextDirection(View.TEXT_DIRECTION_RTL);
@@ -335,7 +347,7 @@ public class MainActivity extends Activity {
             TextView chip = text(names[i], 16, C_TEXT, true);
             chip.setGravity(Gravity.CENTER);
             chip.setSingleLine(true);
-            chip.setPadding(dp(6), dp(12), dp(6), dp(12));
+            chip.setPadding(dp(6), dp(10), dp(6), dp(10));
             chip.setOnClickListener(v -> {
                 if (!listening && !busy) onPick.pick(idx);
             });
@@ -355,6 +367,11 @@ public class MainActivity extends Activity {
             boolean d = i == dialectIdx;
             dialectChips[i].setBackground(pressable(d ? C_GREEN : C_SURFACE, dp(14)));
             dialectChips[i].setTextColor(d ? 0xFFFFFFFF : C_MUTED);
+            if (i < 2) {
+                boolean mo = i == listenMode;
+                modeChips[i].setBackground(pressable(mo ? C_SURFACE_ON : C_SURFACE, dp(14)));
+                modeChips[i].setTextColor(mo ? 0xFFFFFFFF : C_MUTED);
+            }
         }
         otherButton.setText("🎤\n" + TARGET_BUTTON[targetIdx]);
         arabicButton.setText("🎤\nتكلّم بالعربية");
@@ -506,8 +523,9 @@ public class MainActivity extends Activity {
             return;
         }
         if (tts != null) tts.stop();
+        retried = false;
 
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+        if (listenMode == 1 || backgroundFailed || !SpeechRecognizer.isRecognitionAvailable(this)) {
             // No background service: fall back to the system dialog.
             startPopupListening(arabic);
             return;
@@ -537,8 +555,8 @@ public class MainActivity extends Activity {
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE, tag);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag);
-        i.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, tag);
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        i.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
         i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
         return i;
     }
@@ -560,20 +578,28 @@ public class MainActivity extends Activity {
     }
 
     private void startBackgroundListening(boolean arabic) {
-        destroyRecognizer();
-        try {
-            ComponentName google = googleRecognitionService();
-            recognizer = google != null
-                    ? SpeechRecognizer.createSpeechRecognizer(this, google)
-                    : SpeechRecognizer.createSpeechRecognizer(this);
-        } catch (RuntimeException e) {
-            recognizer = null;
+        // Reuse one recognizer: recreating it each time causes "client" errors on MIUI.
+        if (recognizer == null) {
+            try {
+                ComponentName google = googleRecognitionService();
+                recognizer = google != null
+                        ? SpeechRecognizer.createSpeechRecognizer(this, google)
+                        : SpeechRecognizer.createSpeechRecognizer(this);
+                recognizer.setRecognitionListener(new Listener());
+            } catch (RuntimeException e) {
+                recognizer = null;
+            }
+        } else {
+            try {
+                recognizer.cancel();
+            } catch (RuntimeException ignored) {
+                // not running
+            }
         }
         if (recognizer == null) {
             startPopupListening(arabic);
             return;
         }
-        recognizer.setRecognitionListener(new Listener());
         listening = true;
         listeningArabic = arabic;
         gotResult = false;
@@ -634,28 +660,42 @@ public class MainActivity extends Activity {
             // Some services report an extra error right after results: ignore it.
             if (!listening || gotResult) return;
             endListening();
+            boolean arabic = listeningArabic;
             switch (error) {
                 case SpeechRecognizer.ERROR_NO_MATCH:
                 case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
                     showError(MSG_NO_SPEECH);
-                    break;
-                case SpeechRecognizer.ERROR_NETWORK:
-                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                case SpeechRecognizer.ERROR_SERVER:
-                    showError(isOnline() ? MSG_RECOGNIZER : MSG_NO_INTERNET);
-                    break;
+                    return;
                 case SpeechRecognizer.ERROR_AUDIO:
                     showError(MSG_MIC);
-                    break;
+                    return;
                 case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
                     showError(MSG_MIC_PERMISSION);
-                    break;
-                case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                    showError(MSG_BUSY);
+                    return;
+                case SpeechRecognizer.ERROR_NETWORK:
+                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                    if (!isOnline()) {
+                        showError(MSG_NO_INTERNET);
+                        return;
+                    }
                     break;
                 default:
-                    showError(MSG_RECOGNIZER);
                     break;
+            }
+            // Service problem (client, busy, server, language not available...).
+            // First try again once with a fresh recognizer, then use the Google window.
+            destroyRecognizer();
+            if (!retried) {
+                retried = true;
+                main.postDelayed(() -> {
+                    if (!isFinishing() && !listening && !busy) startBackgroundListening(arabic);
+                }, 400);
+            } else {
+                backgroundFailed = true;
+                Toast.makeText(MainActivity.this,
+                        "الاستماع في الخلفية لا يعمل الآن (رمز " + error + "). سيتم استخدام نافذة Google.",
+                        Toast.LENGTH_LONG).show();
+                startPopupListening(arabic);
             }
         }
 

@@ -32,6 +32,7 @@ All builds: https://github.com/abderrahimlafifi/darijja/releases
    (On some MIUI versions the path is Settings > Text-to-speech > Google.)
 7. Open Talk Translate, pick the other language and your Arabic dialect, and press the green button.
    The first time, allow microphone access. Speak, then tap the same button again when you finish (or just stop talking).
+   Under "Listening mode" you can choose "In the background" (no popup) or "Google window". If background listening fails, the app retries once and then opens the Google window automatically.
 
 New builds use the same signing key, so they install over the old version without uninstalling.
 

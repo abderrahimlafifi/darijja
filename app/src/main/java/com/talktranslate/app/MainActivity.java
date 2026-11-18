@@ -7,7 +7,12 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.Manifest;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
+import android.content.ComponentName;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.content.res.ColorStateList;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
@@ -20,7 +25,10 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.speech.RecognitionListener;
+import android.speech.RecognitionService;
 import android.speech.RecognizerIntent;
+import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -33,6 +41,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -61,7 +70,10 @@ public class MainActivity extends Activity {
     private static final String[] TARGET_NAMES = {"English", "Français", "Español"};
     private static final String[] TARGET_SPEECH_TAGS = {"en-US", "fr-FR", "es-ES"};
     private static final String[] TARGET_BUTTON = {"Speak English", "Parlez français", "Hable español"};
-    private static final String[] TARGET_PROMPT = {"Speak now", "Parlez maintenant", "Hable ahora"};
+    private static final String[] TARGET_PROMPT = {"Speak now. Tap the button again when done.",
+            "Parlez maintenant. Appuyez encore sur le bouton pour finir.",
+            "Hable ahora. Pulse el botón otra vez al terminar."};
+    private static final String[] TARGET_LISTENING = {"Listening...", "J'écoute...", "Escuchando..."};
     private static final Locale[] TARGET_LOCALES = {Locale.US, Locale.FRANCE, new Locale("es", "ES")};
 
     // Arabic dialects for speech recognition
@@ -74,12 +86,16 @@ public class MainActivity extends Activity {
 
     private static final int REQ_ARABIC = 101;
     private static final int REQ_OTHER = 102;
+    private static final int REQ_MIC_ARABIC = 201;
+    private static final int REQ_MIC_OTHER = 202;
 
     // Arabic messages
     private static final String MSG_NO_INTERNET = "لا يوجد اتصال بالإنترنت. تحقّق من الواي فاي أو بيانات الهاتف ثم حاول مرة أخرى.";
     private static final String MSG_TRANSLATE_FAILED = "تعذّرت الترجمة. حاول مرة أخرى بعد قليل.";
     private static final String MSG_NO_SPEECH = "لم أفهم الكلام. تكلّم بوضوح وحاول مرة أخرى.";
     private static final String MSG_MIC = "مشكلة في الميكروفون. تأكّد أن تطبيق Google لديه إذن الميكروفون.";
+    private static final String MSG_MIC_PERMISSION = "التطبيق يحتاج إذن الميكروفون ليسمعك. اسمح به من: الإعدادات > التطبيقات > Talk Translate > الأذونات.";
+    private static final String MSG_BUSY = "خدمة التعرّف على الصوت مشغولة. انتظر لحظة وحاول مرة أخرى.";
     private static final String MSG_RECOGNIZER = "خطأ في خدمة التعرّف على الصوت. حاول مرة أخرى.";
     private static final String MSG_GOOGLE_MISSING = "تطبيق Google غير مثبت أو معطّل على هاتفك.\n\n"
             + "التعرّف على الصوت يحتاج تطبيق Google. ثبّته أو فعّله من متجر Play ثم أعد المحاولة.";
@@ -95,6 +111,13 @@ public class MainActivity extends Activity {
     private int targetIdx;
     private int dialectIdx;
     private boolean busy;
+
+    // In-app background speech recognition (no Google popup)
+    private SpeechRecognizer recognizer;
+    private boolean listening;
+    private boolean listeningArabic;
+    private boolean gotResult;
+    private ObjectAnimator pulse;
 
     private TextToSpeech tts;
     private boolean ttsReady;
@@ -181,7 +204,14 @@ public class MainActivity extends Activity {
     }
 
     @Override
+    protected void onPause() {
+        super.onPause();
+        cancelListening();
+    }
+
+    @Override
     protected void onDestroy() {
+        destroyRecognizer();
         if (tts != null) {
             tts.stop();
             tts.shutdown();
@@ -306,7 +336,9 @@ public class MainActivity extends Activity {
             chip.setGravity(Gravity.CENTER);
             chip.setSingleLine(true);
             chip.setPadding(dp(6), dp(12), dp(6), dp(12));
-            chip.setOnClickListener(v -> onPick.pick(idx));
+            chip.setOnClickListener(v -> {
+                if (!listening && !busy) onPick.pick(idx);
+            });
             LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1);
             if (i > 0) lp.setMarginStart(dp(8));
             row.addView(chip, lp);
@@ -333,10 +365,14 @@ public class MainActivity extends Activity {
         b.setAllCaps(false);
         b.setText(label);
         b.setTextColor(0xFFFFFFFF);
-        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 20);
+        b.setTextSize(TypedValue.COMPLEX_UNIT_SP, 18);
         b.setTypeface(Typeface.DEFAULT_BOLD);
         b.setGravity(Gravity.CENTER);
-        b.setLineSpacing(0, 1.1f);
+        b.setLineSpacing(0, 1.05f);
+        b.setPadding(dp(6), dp(6), dp(6), dp(6));
+        b.setMinHeight(0);
+        b.setMinimumHeight(0);
+        b.setMaxLines(2);
         b.setStateListAnimator(null);
         b.setBackground(pressable(color, dp(24)));
         return b;
@@ -455,7 +491,14 @@ public class MainActivity extends Activity {
 
     // ------------------------------------------------------------------ speech to text
 
+    /** Big button pressed: start listening, or stop if this button is already listening. */
     private void startListening(boolean arabic) {
+        if (listening) {
+            if (arabic == listeningArabic && recognizer != null) {
+                recognizer.stopListening(); // finish now and return what was heard
+            }
+            return;
+        }
         if (busy) return;
         hideError();
         if (!isOnline()) {
@@ -464,6 +507,31 @@ public class MainActivity extends Activity {
         }
         if (tts != null) tts.stop();
 
+        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
+            // No background service: fall back to the system dialog.
+            startPopupListening(arabic);
+            return;
+        }
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO},
+                    arabic ? REQ_MIC_ARABIC : REQ_MIC_OTHER);
+            return;
+        }
+        startBackgroundListening(arabic);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQ_MIC_ARABIC && requestCode != REQ_MIC_OTHER) return;
+        if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startBackgroundListening(requestCode == REQ_MIC_ARABIC);
+        } else {
+            showError(MSG_MIC_PERMISSION);
+        }
+    }
+
+    private Intent recognizerIntent(boolean arabic) {
         String tag = arabic ? DIALECT_TAGS[dialectIdx] : TARGET_SPEECH_TAGS[targetIdx];
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
@@ -471,6 +539,199 @@ public class MainActivity extends Activity {
         i.putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, tag);
         i.putExtra(RecognizerIntent.EXTRA_ONLY_RETURN_LANGUAGE_PREFERENCE, tag);
         i.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
+        i.putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, getPackageName());
+        return i;
+    }
+
+    /** Prefer Google's recognition service (MIUI may have its own default that lacks Arabic). */
+    private ComponentName googleRecognitionService() {
+        try {
+            List<ResolveInfo> list = getPackageManager().queryIntentServices(
+                    new Intent(RecognitionService.SERVICE_INTERFACE), 0);
+            for (ResolveInfo ri : list) {
+                if (ri.serviceInfo != null && GOOGLE_APP.equals(ri.serviceInfo.packageName)) {
+                    return new ComponentName(ri.serviceInfo.packageName, ri.serviceInfo.name);
+                }
+            }
+        } catch (RuntimeException ignored) {
+            // use the default service
+        }
+        return null;
+    }
+
+    private void startBackgroundListening(boolean arabic) {
+        destroyRecognizer();
+        try {
+            ComponentName google = googleRecognitionService();
+            recognizer = google != null
+                    ? SpeechRecognizer.createSpeechRecognizer(this, google)
+                    : SpeechRecognizer.createSpeechRecognizer(this);
+        } catch (RuntimeException e) {
+            recognizer = null;
+        }
+        if (recognizer == null) {
+            startPopupListening(arabic);
+            return;
+        }
+        recognizer.setRecognitionListener(new Listener());
+        listening = true;
+        listeningArabic = arabic;
+        gotResult = false;
+        showListeningUi(true, null);
+        try {
+            recognizer.startListening(recognizerIntent(arabic));
+        } catch (RuntimeException e) {
+            endListening();
+            startPopupListening(arabic);
+        }
+    }
+
+    private final class Listener implements RecognitionListener {
+        @Override
+        public void onReadyForSpeech(Bundle params) {
+            showListeningUi(true, null);
+        }
+
+        @Override
+        public void onBeginningOfSpeech() {
+        }
+
+        @Override
+        public void onRmsChanged(float rmsdB) {
+        }
+
+        @Override
+        public void onBufferReceived(byte[] buffer) {
+        }
+
+        @Override
+        public void onEndOfSpeech() {
+            if (listening) statusText.setText("جارٍ التعرّف على الكلام...");
+        }
+
+        @Override
+        public void onPartialResults(Bundle partial) {
+            String t = firstResult(partial);
+            if (listening && t != null && !t.isEmpty()) statusText.setText(t);
+        }
+
+        @Override
+        public void onResults(Bundle results) {
+            if (!listening) return;
+            boolean arabic = listeningArabic;
+            gotResult = true;
+            endListening();
+            String heard = firstResult(results);
+            if (heard == null || heard.trim().isEmpty()) {
+                showError(MSG_NO_SPEECH);
+            } else {
+                translateAndShow(heard.trim(), arabic);
+            }
+        }
+
+        @Override
+        public void onError(int error) {
+            // Some services report an extra error right after results: ignore it.
+            if (!listening || gotResult) return;
+            endListening();
+            switch (error) {
+                case SpeechRecognizer.ERROR_NO_MATCH:
+                case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
+                    showError(MSG_NO_SPEECH);
+                    break;
+                case SpeechRecognizer.ERROR_NETWORK:
+                case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
+                case SpeechRecognizer.ERROR_SERVER:
+                    showError(isOnline() ? MSG_RECOGNIZER : MSG_NO_INTERNET);
+                    break;
+                case SpeechRecognizer.ERROR_AUDIO:
+                    showError(MSG_MIC);
+                    break;
+                case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
+                    showError(MSG_MIC_PERMISSION);
+                    break;
+                case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
+                    showError(MSG_BUSY);
+                    break;
+                default:
+                    showError(MSG_RECOGNIZER);
+                    break;
+            }
+        }
+
+        @Override
+        public void onEvent(int eventType, Bundle params) {
+        }
+    }
+
+    private static String firstResult(Bundle b) {
+        if (b == null) return null;
+        ArrayList<String> r = b.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
+        return (r == null || r.isEmpty()) ? null : r.get(0);
+    }
+
+    private void endListening() {
+        listening = false;
+        showListeningUi(false, null);
+    }
+
+    private void cancelListening() {
+        if (listening && recognizer != null) {
+            try {
+                recognizer.cancel();
+            } catch (RuntimeException ignored) {
+                // already stopped
+            }
+        }
+        if (listening) endListening();
+    }
+
+    private void destroyRecognizer() {
+        if (recognizer != null) {
+            try {
+                recognizer.destroy();
+            } catch (RuntimeException ignored) {
+                // already released
+            }
+            recognizer = null;
+        }
+    }
+
+    /** Shows the listening state on the pressed button, without any popup. */
+    private void showListeningUi(boolean on, String unused) {
+        Button active = listeningArabic ? arabicButton : otherButton;
+        Button other = listeningArabic ? otherButton : arabicButton;
+        if (pulse != null) {
+            pulse.cancel();
+            pulse = null;
+        }
+        if (on) {
+            active.setText(listeningArabic ? "\u23F9\nأنا أسمعك..." : "\u23F9\n" + TARGET_LISTENING[targetIdx]);
+            active.setAlpha(1f);
+            other.setEnabled(false);
+            other.setAlpha(0.4f);
+            statusText.setText(listeningArabic
+                    ? "تكلّم الآن بالعربية. اضغط الزر مرة أخرى عند الانتهاء."
+                    : TARGET_PROMPT[targetIdx]);
+            statusText.setVisibility(View.VISIBLE);
+            pulse = ObjectAnimator.ofFloat(active, "alpha", 1f, 0.6f);
+            pulse.setDuration(700);
+            pulse.setRepeatMode(ValueAnimator.REVERSE);
+            pulse.setRepeatCount(ValueAnimator.INFINITE);
+            pulse.start();
+        } else {
+            arabicButton.setAlpha(1f);
+            otherButton.setAlpha(1f);
+            arabicButton.setEnabled(true);
+            otherButton.setEnabled(true);
+            statusText.setVisibility(View.GONE);
+            refreshSelectors();
+        }
+    }
+
+    /** Fallback: the system speech dialog, used only if background recognition is not available. */
+    private void startPopupListening(boolean arabic) {
+        Intent i = recognizerIntent(arabic);
         i.putExtra(RecognizerIntent.EXTRA_PROMPT, arabic ? "تكلّم الآن بالعربية" : TARGET_PROMPT[targetIdx]);
         try {
             startActivityForResult(i, arabic ? REQ_ARABIC : REQ_OTHER);

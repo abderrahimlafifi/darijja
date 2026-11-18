@@ -31,6 +31,7 @@ All builds: https://github.com/abderrahimlafifi/darijja/releases
    and download Arabic plus English, French or Spanish.
    (On some MIUI versions the path is Settings > Text-to-speech > Google.)
 7. Open Talk Translate, pick the other language and your Arabic dialect, and press the green button.
+   The first time, allow microphone access. Speak, then tap the same button again when you finish (or just stop talking).
 
 New builds use the same signing key, so they install over the old version without uninstalling.
 
@@ -51,11 +52,13 @@ Java only, single Activity, no third party libraries.
 
 | Step | Service |
 | --- | --- |
-| Speech to text | Android `RecognizerIntent.ACTION_RECOGNIZE_SPEECH` (Google app), with `EXTRA_LANGUAGE` set to `ar-MA`, `ar-SA`, `ar-EG`, `en-US`, `fr-FR` or `es-ES` |
+| Speech to text | Android `SpeechRecognizer` running in the background inside the app (no Google popup), using Google's recognition service, with `EXTRA_LANGUAGE` set to `ar-MA`, `ar-SA`, `ar-EG`, `en-US`, `fr-FR` or `es-ES` |
 | Translation | `translate.googleapis.com/translate_a/single?client=gtx` with fallback to `api.mymemory.translated.net`, on a background thread with 10 second timeouts |
 | Text to speech | Android `TextToSpeech`, preferring the Google engine when installed |
 
-The manifest declares `INTERNET`, `ACCESS_NETWORK_STATE` (to detect no internet) and `<queries>` entries
+The app asks once for microphone permission. If background recognition is not available it falls back to the system `RecognizerIntent` dialog.
+
+The manifest declares `INTERNET`, `RECORD_AUDIO`, `ACCESS_NETWORK_STATE` (to detect no internet) and `<queries>` entries
 for `RECOGNIZE_SPEECH`, `RecognitionService` and `TTS_SERVICE`, needed for package visibility on Android 11 and newer.
 
 `app/debug.keystore` is a standard debug key (passwords `android`) kept in the repo so every build has the same signature.

@@ -1,0 +1,45 @@
+plugins {
+    id 'com.android.application'
+}
+
+// On GitHub Actions the run number becomes the version code, so every new
+// build installs on top of the previous one without uninstalling.
+def runNumber = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger()
+
+android {
+    namespace 'com.talktranslate.app'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId 'com.talktranslate.app'
+        minSdk 24
+        targetSdk 34
+        versionCode runNumber
+        versionName "1.0." + runNumber
+    }
+
+    signingConfigs {
+        // A fixed debug key kept in the repo, so updates keep the same signature.
+        debug {
+            storeFile file('debug.keystore')
+            storePassword 'android'
+            keyAlias 'androiddebugkey'
+            keyPassword 'android'
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+        release {
+            minifyEnabled false
+            signingConfig signingConfigs.debug
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+}

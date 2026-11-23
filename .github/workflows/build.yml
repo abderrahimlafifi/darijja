@@ -31,28 +31,35 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Build debug APKs and run unit tests
         run: |
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon assembleDebug :browser:testDebugUnitTest
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk TalkTranslate.apk
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk TalkTranslate.apk
+          cp browser/build/outputs/apk/debug/browser-debug.apk CleanBrowser.apk
 
-      - name: Upload build artifact
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TalkTranslate
-          path: TalkTranslate.apk
+          name: apks
+          path: |
+            TalkTranslate.apk
+            CleanBrowser.apk
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Talk Translate 1.0.${{ github.run_number }}
+          name: Talk Translate + Clean Browser 1.0.${{ github.run_number }}
           target_commitish: ${{ github.sha }}
           make_latest: "true"
-          files: TalkTranslate.apk
+          files: |
+            TalkTranslate.apk
+            CleanBrowser.apk
           body: |
-            Debug signed APK, ready to install on Android 7 and newer.
-            Download TalkTranslate.apk below and open it on your phone.
+            Debug signed APKs.
+            - CleanBrowser.apk: ad blocking browser with favorites, for phones and Android TV / Google TV (Android 5.0 and newer).
+            - TalkTranslate.apk: Arabic voice conversation translator (Android 7 and newer).

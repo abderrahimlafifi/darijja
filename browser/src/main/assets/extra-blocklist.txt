@@ -1,0 +1,17 @@
+# Extra ad, popup and push-notification networks, one domain per line.
+# Always loaded on top of the bundled or downloaded lists.
+adsterra.com
+monetag.com
+admaven.com
+galaksion.com
+clickaine.com
+pushground.com
+richpush.co
+highperformanceformat.com
+profitabledisplaynetwork.com
+effectiveratecpm.com
+acint.net
+pubmatic.com
+adspyglass.com
+trafficjunky.com
+adtelligent.com

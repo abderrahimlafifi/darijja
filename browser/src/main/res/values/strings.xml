@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">متصفح نقي</string>
+    <string name="settings">الإعدادات</string>
+
+    <!-- Toolbar -->
+    <string name="address_hint">ابحث أو اكتب رابطاً</string>
+    <string name="back">رجوع</string>
+    <string name="forward">تقدّم</string>
+    <string name="reload">إعادة التحميل</string>
+    <string name="home">الرئيسية</string>
+    <string name="favorite_add">إضافة إلى المفضلة</string>
+    <string name="favorite_remove">إزالة من المفضلة</string>
+    <string name="shield">الحماية من الإعلانات</string>
+    <string name="menu">القائمة</string>
+    <string name="close">إغلاق</string>
+    <string name="open">فتح</string>
+    <string name="cancel">إلغاء</string>
+    <string name="save">حفظ</string>
+    <string name="delete">حذف</string>
+    <string name="edit">تعديل</string>
+    <string name="go">اذهب</string>
+
+    <!-- Home and favorites -->
+    <string name="home_subtitle">تصفّح بدون إعلانات ولا نوافذ منبثقة</string>
+    <string name="home_stats">تم حظر %1$s إعلان ومتتبع حتى الآن</string>
+    <string name="favorites">المفضلة</string>
+    <string name="favorites_hint">اضغط مطولاً على أي موقع لتعديله أو حذفه أو تغيير ترتيبه</string>
+    <string name="add_favorite_tile">إضافة</string>
+    <string name="favorite_added">تمت الإضافة إلى المفضلة</string>
+    <string name="favorite_removed">تمت الإزالة من المفضلة</string>
+    <string name="favorite_name">الاسم</string>
+    <string name="favorite_url">الرابط</string>
+    <string name="favorite_new">إضافة موقع إلى المفضلة</string>
+    <string name="favorite_edit">تعديل المفضلة</string>
+    <string name="move_earlier">نقل إلى الأمام</string>
+    <string name="move_later">نقل إلى الخلف</string>
+    <string name="favorite_delete_confirm">حذف «%1$s» من المفضلة؟</string>
+    <string name="invalid_url">الرابط غير صالح</string>
+    <string name="default_wikipedia">ويكيبيديا</string>
+
+    <!-- Blocking messages -->
+    <string name="blocked_popup">تم حظر نافذة منبثقة: %1$s</string>
+    <string name="blocked_link">تم حظر رابط إعلاني: %1$s</string>
+    <string name="blocked_redirect">تم منع تحويل إلى إعلان: %1$s</string>
+    <string name="blocked_app">تم منع إعلان من فتح تطبيق آخر</string>
+    <string name="blocked_page_title">تم حظر هذا الموقع</string>
+    <string name="blocked_page_body">هذا العنوان موجود في قائمة الإعلانات والمتتبعات، لذلك تم حظره.</string>
+    <string name="blocked_page_back">رجوع</string>
+    <string name="blocked_page_open">فتح على أي حال</string>
+
+    <!-- Shield dialog -->
+    <string name="shield_page">في هذه الصفحة: تم حظر %1$s عنصر</string>
+    <string name="shield_total">المجموع منذ التثبيت: %1$s</string>
+    <string name="shield_list">قائمة الحظر: %1$s نطاق إعلاني</string>
+    <string name="shield_on_site">الحماية مفعّلة في %1$s</string>
+    <string name="shield_off_site">الحماية متوقفة في %1$s</string>
+    <string name="shield_disable_site">إيقاف الحظر في هذا الموقع</string>
+    <string name="shield_enable_site">تفعيل الحظر في هذا الموقع</string>
+    <string name="shield_disabled_global">حظر الإعلانات متوقف من الإعدادات</string>
+
+    <!-- Menu -->
+    <string name="menu_favorites">الرئيسية والمفضلة</string>
+    <string name="menu_desktop">نسخة الكمبيوتر</string>
+    <string name="menu_zoom_in">تكبير الصفحة</string>
+    <string name="menu_zoom_out">تصغير الصفحة</string>
+    <string name="menu_share">مشاركة الرابط</string>
+    <string name="menu_exit">خروج</string>
+
+    <!-- Link long press -->
+    <string name="ctx_open">فتح الرابط</string>
+    <string name="ctx_add_favorite">إضافة الرابط إلى المفضلة</string>
+    <string name="ctx_copy">نسخ الرابط</string>
+    <string name="copied">تم النسخ</string>
+
+    <!-- Other apps, certificates, downloads -->
+    <string name="external_title">فتح تطبيق آخر؟</string>
+    <string name="external_body">تريد هذه الصفحة فتح تطبيق خارج المتصفح:\n%1$s</string>
+    <string name="cannot_open">لا يوجد تطبيق لفتح هذا الرابط</string>
+    <string name="ssl_title">اتصال غير آمن</string>
+    <string name="ssl_body">شهادة الأمان لهذا الموقع غير صالحة، وقد لا تكون بياناتك محمية.\n%1$s</string>
+    <string name="ssl_continue">متابعة على أي حال</string>
+    <string name="ssl_back">رجوع</string>
+    <string name="download_title">تنزيل ملف</string>
+    <string name="download_body">تنزيل «%1$s»؟</string>
+    <string name="download_start">تنزيل</string>
+    <string name="download_started">بدأ التنزيل، ستجد الملف في مجلد التنزيلات</string>
+    <string name="download_failed">تعذّر التنزيل</string>
+    <string name="download_unsupported">لا يمكن تنزيل هذا الملف من المتصفح</string>
+    <string name="storage_denied">لا يمكن الحفظ في التنزيلات بدون إذن التخزين</string>
+    <string name="file_chooser_missing">لا يوجد تطبيق لاختيار الملفات</string>
+    <string name="press_back_again">اضغط رجوع مرة أخرى للخروج</string>
+    <string name="page_crashed">توقفت الصفحة عن العمل وتمت إعادة تشغيلها</string>
+
+    <!-- TV help -->
+    <string name="tv_hint_title">التحكم بالريموت</string>
+    <string name="tv_hint_body">• الأسهم: تحريك المؤشر، واضغط مطولاً للتحريك السريع\n• زر OK: النقر، واضغط مطولاً لقائمة الرابط\n• المؤشر عند حافة الشاشة: تمرير الصفحة\n• السهم للأعلى في أعلى الصفحة: شريط العنوان والأزرار، والسهم للأسفل للعودة\n• زر الرجوع: الصفحة السابقة</string>
+    <string name="tv_hint_ok">فهمت</string>
+
+    <!-- Settings -->
+    <string name="section_ads">حظر الإعلانات</string>
+    <string name="set_block_ads">حظر الإعلانات والمتتبعات</string>
+    <string name="set_block_ads_sum">يمنع تحميل أي شيء من عشرات آلاف المواقع الإعلانية</string>
+    <string name="set_block_popups">حظر النوافذ المنبثقة والتحويلات</string>
+    <string name="set_block_popups_sum">يمنع فتح نوافذ وصفحات إعلانية عند النقر على الصفحة</string>
+    <string name="set_hide">إخفاء أماكن الإعلانات</string>
+    <string name="set_hide_sum">يزيل المربعات الفارغة التي تبقى مكان الإعلانات</string>
+    <string name="set_youtube">تخطي إعلانات يوتيوب</string>
+    <string name="set_youtube_sum">يكتم إعلانات الفيديو ويتخطاها ويخفي الإعلانات بين المقاطع</string>
+    <string name="set_update">تحديث قائمة الحظر الآن</string>
+    <string name="set_update_sum">%1$s نطاق محظور · آخر تحديث: %2$s</string>
+    <string name="set_update_never">القائمة المرفقة مع التطبيق</string>
+    <string name="set_updating">جارٍ تحميل أحدث القوائم...</string>
+    <string name="set_update_done">تم التحديث: %1$s نطاق محظور</string>
+    <string name="set_update_failed">فشل التحديث، تحقق من الاتصال بالإنترنت</string>
+    <string name="update_running">التحديث جارٍ بالفعل</string>
+    <string name="set_src_sb">مصدر StevenBlack (إعلانات وبرامج ضارة)</string>
+    <string name="set_src_ag">مصدر AdGuard DNS (إعلانات ومتتبعات)</string>
+    <string name="set_sources_sum">يُستعمل عند التحديث، والتحديث تلقائي كل أسبوع</string>
+    <string name="set_allowed">المواقع المستثناة من الحظر</string>
+    <string name="set_allowed_sum">%1$s موقع</string>
+    <string name="set_allowed_none">لا توجد مواقع مستثناة</string>
+    <string name="set_allowed_pick">اختر المواقع التي تريد إعادة تفعيل الحظر فيها</string>
+    <string name="set_allowed_restore">إعادة تفعيل الحظر</string>
+    <string name="set_total">تم حظر %1$s عنصر منذ تثبيت التطبيق</string>
+    <string name="section_browsing">التصفح</string>
+    <string name="set_search">محرك البحث</string>
+    <string name="set_text">حجم النص في الصفحات</string>
+    <string name="set_desktop">فتح نسخة الكمبيوتر دائماً</string>
+    <string name="set_desktop_sum">مفيد على التلفاز للمواقع التي تظهر بنسخة الهاتف</string>
+    <string name="set_cursor">مؤشر الماوس بالريموت</string>
+    <string name="set_cursor_sum">تحريك مؤشر على الصفحة بأسهم الريموت (للتلفاز)</string>
+    <string name="set_cursor_speed">سرعة المؤشر</string>
+    <string name="speed_slow">بطيئة</string>
+    <string name="speed_normal">عادية</string>
+    <string name="speed_fast">سريعة</string>
+    <string name="set_clear">مسح بيانات التصفح</string>
+    <string name="set_clear_sum">الكوكيز والذاكرة المؤقتة وسجل الصفحات</string>
+    <string name="set_clear_confirm">سيتم تسجيل خروجك من المواقع. هل تريد المتابعة؟</string>
+    <string name="set_cleared">تم مسح بيانات التصفح</string>
+    <string name="section_about">حول التطبيق</string>
+    <string name="about_text">متصفح نقي، الإصدار %1$s\nقوائم الحظر: StevenBlack/hosts (رخصة MIT) و AdGuard DNS filter.</string>
+</resources>
